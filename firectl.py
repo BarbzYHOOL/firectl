@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 # firectl - integrate firejail sandboxing in the Linux desktop
 # Copyright (C) 2015-2017 Rahiel Kasim
 #
@@ -21,7 +20,7 @@ from difflib import get_close_matches
 
 import click
 
-__version__ = "1.0"
+__version__ = "1.0.1"
 
 
 profile_path = "/etc/firejail/"
@@ -206,5 +205,5 @@ def restore():
         enable.callback(conf, update_config=False)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()
