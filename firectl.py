@@ -20,7 +20,7 @@ from difflib import get_close_matches
 
 import click
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 
 profile_path = "/etc/firejail/"
@@ -42,8 +42,8 @@ def get_config():
     """Get header and config."""
     header = "# list of enforced firejail profiles\n"
     try:
-        with open(config, 'r') as f:
-            conf = [l.strip() for l in f.readlines() if not l.startswith('#')]
+        with open(config, "r") as f:
+            conf = [l.strip() for l in f.readlines() if not l.startswith("#")]
     except FileNotFoundError:
         conf = []
     return header, conf
@@ -65,7 +65,7 @@ def write_config(programs, test, combine):
 
     if write:
         lines = header + "\n".join(sorted(combine(programs, conf)))
-        with open(config, 'w') as f:
+        with open(config, "w") as f:
             f.writelines(lines)
 
 
@@ -101,14 +101,14 @@ def get_desktop(program):
 def replace(filename, condition, transform):
     """Replace lines in filename for which condition is true with transform."""
     newfile = []
-    with open(filename, 'r') as f:
+    with open(filename, "rb") as f:
         for line in f:
             if condition(line):
                 newfile.append(transform(line))
             else:
                 newfile.append(line)
 
-    with open(filename, 'w') as f:
+    with open(filename, "wb") as f:
         f.writelines(newfile)
 
 
@@ -136,8 +136,8 @@ def enable(program, update_config=True):
 
     for p in programs:
         replace(p,
-                lambda l: l.startswith("Exec=") and "firejail" not in l,
-                lambda l: "Exec=firejail " + l[l.find('=') + 1:])
+                lambda l: l.startswith(b"Exec=") and b"firejail" not in l,
+                lambda l: b"Exec=firejail " + l[l.find(b"=") + 1:])
 
     if update_config:
         add_config(programs)
@@ -151,8 +151,8 @@ def disable(program):
 
     for p in programs:
         replace(p,
-                lambda line: line.startswith("Exec=firejail"),
-                lambda line: "Exec=" + line[14:])
+                lambda line: line.startswith(b"Exec=firejail"),
+                lambda line: b"Exec=" + line[14:])
 
     remove_config(programs)
 
@@ -163,8 +163,8 @@ def status():
     enabled = []
     disabled = []
     for p in installed:
-        with open(get_desktop(p), 'r') as f:
-            if "Exec=firejail" in f.read():
+        with open(get_desktop(p), "rb") as f:
+            if b"Exec=firejail" in f.read():
                 enabled.append(p)
             else:
                 disabled.append(p)

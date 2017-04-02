@@ -2,6 +2,7 @@ Firectl
 =======
 
 [![License](https://img.shields.io/badge/License-GPLv2+-blue.svg)](https://github.com/rahiel/firectl/blob/master/LICENSE.txt)
+[![Downloads](https://img.shields.io/github/downloads/rahiel/firectl/total.svg)](https://github.com/rahiel/firectl/releases)
 
 Firectl is a tool to integrate [firejail](https://firejail.wordpress.com/)
 sandboxing in the Linux desktop. Enable firejail for an application and enjoy a
