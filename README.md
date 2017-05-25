@@ -33,12 +33,21 @@ enabled application and look for it in that terminal. Note that applications
 launched from the terminal or from scripts will not be in a Firejail, unless
 explicitly done so.
 
-# Alternative
+# Alternative: firecfg
 
 Firectl was made before Firejail had its own tool for desktop integration.
 Firejail 0.9.40+ ships with a tool called `firecfg`. Look at
 the [Linux Mint Sandboxing Guide][] and the manual: `man firecfg` and decide if
 you still need firectl or if firecfg is enough.
+
+For systems that do not run Debian or Ubuntu using `firecfg` is heavily
+recommended. For Debian/Ubuntu systems the desktop integration that firectl and
+firecfg offer are largely the same, with firecfg also automatically sandboxing
+programs started on the command-line (`firefox` is sandboxed but
+`/usr/bin/firefox` is not). Running `sudo firecfg` enables Firejail for all
+programs, individual programs can then be disabled by removing them from
+`/usr/local/bin`. Firectl provides a nice interface to enable/disable individual
+programs.
 
 [Linux Mint Sandboxing Guide]: https://firejail.wordpress.com/2017/05/15/linux-mint-sandboxing-guide/#launchers
 
