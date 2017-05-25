@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+if [[ "$VIRTUAL_ENV" ]]; then
+    echo "Exit your virtualenv!"
+    exit 1
+fi
+
 fpm -s python -t deb \
     --python-bin python3 --python-pip pip3 \
     -n 'firectl' \
