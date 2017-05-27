@@ -3,5 +3,5 @@
 set -e
 
 if [ "$1" = "remove" ]; then
-    firectl disable all
+    firectl disable --all
 fi

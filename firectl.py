@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# firectl - integrate firejail sandboxing in the Linux desktop
+# firectl - Integrate Firejail sandboxing in the Linux desktop
 # Copyright (C) 2015-2017 Rahiel Kasim
 #
 # This program is free software; you can redistribute it and/or
@@ -16,15 +16,23 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import os
+import os.path
 from difflib import get_close_matches
+from shutil import which
 
 import click
 
-__version__ = "1.0.2"
+__version__ = "1.1.0"
 
+
+firejail = which("firejail")
+if not firejail:
+    click.secho("Firejail is not installed!", fg="red")
+    raise click.UsageError(message="Please install Firejail.")
 
 profile_path = "/etc/firejail/"
 application_path = "/usr/share/applications/"
+symlink_path = "/usr/local/bin/"
 config = "/etc/firejail/firectl.conf"
 
 profiles = [os.path.splitext(f)[0] for f in os.listdir(profile_path)]
@@ -40,7 +48,7 @@ def cli():
 
 def get_config():
     """Get header and config."""
-    header = "# list of enforced firejail profiles\n"
+    header = "# list of enforced Firejail profiles\n"
     try:
         with open(config, "r") as f:
             conf = [l.strip() for l in f.readlines() if not l.startswith("#")]
@@ -55,7 +63,6 @@ def write_config(programs, test, combine):
     combine.
     """
     header, conf = get_config()
-    programs = [os.path.splitext(os.path.basename(p))[0] for p in programs]
 
     write = False
     for p in programs:
@@ -112,30 +119,47 @@ def replace(filename, condition, transform):
         f.writelines(newfile)
 
 
-def get_programs(program):
+def get_programs(program, all_programs=False):
     """Return list of programs to enable / disable."""
-    if len(program) == 0:
-        raise click.ClickException("No program specified.")
+    if all_programs:
+        program = installed
 
     # Check if we have permission to modify global desktop files.
     if not os.access(get_desktop(installed[0]), os.W_OK):
         raise click.UsageError(
             message="Can't modify desktop files, please execute as root.")
 
-    if program[0] == "all":
-        program = installed
+    if len(program) == 0:
+        raise click.ClickException("No program specified.")
 
-    return [get_desktop(p) for p in program]
+    return list(program), [get_desktop(p) for p in program]
 
 
-@cli.command(help="enable firejail for program")
+def symlink_enable(program):
+    p = "/usr/local/bin/" + program
+    if not os.path.exists(p):
+        os.symlink(firejail, p)
+
+
+def symlink_disable(program):
+    p = "/usr/local/bin/" + program
+    if os.path.exists(p):
+        os.remove(p)
+
+
+@cli.command(help="enable Firejail for program")
 @click.argument("program", type=click.STRING, nargs=-1)
-def enable(program, update_config=True):
-    """Enable firejail for program. Program is tuple/list of program names."""
-    programs = get_programs(program)
+@click.option("--all", "all_programs", is_flag=True, help="Enable Firejail for all supported programs.")
+def enable(program, all_programs, update_config=True):
+    """Enable Firejail for program. Program is a sequence of program names."""
+    programs, desktop_files = get_programs(program, all_programs)  # root access after this line
 
+    os.makedirs("/usr/local/bin", mode=0o775, exist_ok=True)
     for p in programs:
-        replace(p,
+        symlink_enable(p)
+
+    for d in desktop_files:
+        replace(d,
                 lambda l: l.startswith(b"Exec=") and b"firejail" not in l,
                 lambda l: b"Exec=firejail " + l[l.find(b"=") + 1:])
 
@@ -143,23 +167,35 @@ def enable(program, update_config=True):
         add_config(programs)
 
 
-@cli.command(help="disable firejail for program")
+@cli.command(help="disable Firejail for program")
 @click.argument("program", type=click.STRING, nargs=-1)
-def disable(program):
-    """Disable firejail for program. Program is tuple/list of program names."""
-    programs = get_programs(program)
+@click.option("--all", "all_programs", is_flag=True, help="Disable Firejail for all programs.")
+def disable(program, all_programs):
+    """Disable Firejail for program. Program is a sequence of program names."""
+    programs, desktop_files = get_programs(program, all_programs)  # root access after this line
 
     for p in programs:
-        replace(p,
+        symlink_disable(p)
+
+    for d in desktop_files:
+        replace(d,
                 lambda line: line.startswith(b"Exec=firejail"),
                 lambda line: b"Exec=" + line[14:])
 
     remove_config(programs)
 
 
-@cli.command(help="show status of firejail profiles")
+@cli.command(help="show status of Firejail profiles")
 def status():
-    """Display status of available firejail profiles."""
+    """Display status of available Firejail profiles."""
+    symlinks = []
+    try:
+        for p in os.scandir(symlink_path):
+            if p.is_symlink() and os.path.realpath(p.path) == firejail:
+                symlinks.append(p.name)
+    except FileNotFoundError:
+        pass
+
     enabled = []
     disabled = []
     for p in installed:
@@ -170,30 +206,44 @@ def status():
                 disabled.append(p)
 
     header, conf = get_config()
-    update_disabled = [p for p in conf if p not in enabled]
+    update_disabled = [p for p in conf if (p not in enabled or p not in symlinks)]
     disabled = [p for p in disabled if p not in update_disabled]
 
-    click.echo("{:<2} firejail profiles are enabled".format(len(enabled)))
-    for p in sorted(enabled):
-        click.echo("   %s" % p)
+    try:
+        longest_name = max(conf, key=len)
+    except ValueError:
+        longest_name = None     # when the list is empty
+
+    def pad(s, l):
+        """Right-pad s so it's the same length as l."""
+        return s + " " * (len(l) - len(s))
+
+    is_enabled = lambda p, l: pad("yes", "symlink") if p in l else click.style(pad("no", "symlink"), fg="red")
+    padding = "    "
+
+    click.echo("{:<2} Firejail profiles are enabled".format(len(enabled)))
+    if conf:
+        click.secho("   " + pad("program", longest_name) + padding + "symlink" + padding + "desktop file", bold=True)
+        for p in sorted(conf):
+            click.echo("   " + pad(p, longest_name) + padding + is_enabled(p, symlinks) + padding + is_enabled(p, enabled))
     print()
 
-    click.echo("{:<2} firejail profiles are disabled and available"
+    click.echo("{:<2} Firejail profiles are disabled and available"
                .format(len(disabled)))
     for p in sorted(disabled):
         click.echo("   %s" % p)
 
     if len(update_disabled) > 0:
-        click.secho("\n{} firejail profiles are disabled by updates"
+        click.secho("\n{:<2} Firejail profiles are disabled by updates"
                     .format(len(update_disabled)), fg="red")
         for p in sorted(update_disabled):
             click.echo("   %s" % p)
-        click.echo("Please run: sudo firectl restore")
+        click.echo("Please run: " + click.style("sudo firectl restore", bold=True))
 
 
-@cli.command(help="restore firejail profiles from config")
+@cli.command(help="restore Firejail profiles from config")
 def restore():
-    """Re-enable firejail profiles for when desktop files get updated."""
+    """Re-enable Firejail profiles for when desktop files get updated."""
     header, conf = get_config()
 
     # clean config from enabled programs removed from the system
@@ -201,8 +251,11 @@ def restore():
     remove_config(removed)
     [conf.remove(c) for c in removed]
 
+    for p in removed:
+        symlink_disable(p)
+
     if len(conf) > 0:
-        enable.callback(conf, update_config=False)
+        enable.callback(conf, all_programs=False, update_config=False)
 
 
 if __name__ == "__main__":
