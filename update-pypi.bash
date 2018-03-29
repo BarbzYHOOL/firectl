@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+
 python3 -c 'import pypandoc'
 
 rm -rf dist/

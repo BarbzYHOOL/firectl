@@ -3,7 +3,7 @@ Firectl
 
 [![License](https://img.shields.io/badge/License-GPLv2+-blue.svg)](https://github.com/rahiel/firectl/blob/master/LICENSE.txt)
 [![Downloads](https://img.shields.io/github/downloads/rahiel/firectl/total.svg)](https://github.com/rahiel/firectl/releases)
-[![pyversions](https://img.shields.io/badge/python-3.3%2B-blue.svg)](https://pypi.python.org/pypi/firectl)
+[![pyversions](https://img.shields.io/badge/python-3.3%2B-blue.svg)](https://pypi.org/project/firectl/)
 
 Firectl is a tool to integrate [Firejail](https://firejail.wordpress.com/)
 sandboxing in the Linux desktop. Enable Firejail for an application and enjoy a
